@@ -132,12 +132,15 @@ export function getHTML(): string {
   .name-input-row {
     display: flex; gap: 10px; margin-bottom: 20px;
   }
-  .name-input-row input {
+  .name-input-row select {
     flex: 1; background: var(--bg); border: 2px solid var(--border);
     color: var(--text); padding: 10px 14px; border-radius: 10px;
-    font-size: 0.95rem; outline: none;
+    font-size: 0.95rem; outline: none; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
   }
-  .name-input-row input:focus { border-color: var(--blue); }
+  .name-input-row select:focus { border-color: var(--blue); }
 
   .role-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
@@ -370,7 +373,17 @@ export function getHTML(): string {
         <div class="room-code-hint">Click code to copy &middot; Share with friends</div>
 
         <div class="name-input-row">
-          <input type="text" id="nameInput" placeholder="Your name" maxlength="20">
+          <select id="nameInput">
+            <option value="" disabled selected>Who are you?</option>
+            <option value="AJ">AJ</option>
+            <option value="SB">SB</option>
+            <option value="Aryan">Aryan</option>
+            <option value="LB">LB</option>
+            <option value="Ms DTM">Ms DTM</option>
+            <option value="Pops">Pops</option>
+            <option value="Mom">Mom</option>
+            <option value="Mikhayl">Mikhayl</option>
+          </select>
         </div>
 
         <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Pick your role</div>
@@ -507,7 +520,7 @@ export function getHTML(): string {
     else btn.classList.add('btn-disabled');
   }
 
-  document.getElementById('nameInput').addEventListener('input', updateJoinBtn);
+  document.getElementById('nameInput').addEventListener('change', updateJoinBtn);
 
   function joinGame() {
     if (!selectedRole || !roomCode) return;
