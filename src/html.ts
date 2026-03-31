@@ -383,6 +383,7 @@ export function getHTML(): string {
             <option value="Pops">Pops</option>
             <option value="Mom">Mom</option>
             <option value="Mikhayl">Mikhayl</option>
+            <option value="Arhan">Arhan</option>
           </select>
         </div>
 
