@@ -1,0 +1,7 @@
+name = "codenames"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "CODENAMES"
+id = "45ab9c698d8147d79d2e3a5857866f20"
