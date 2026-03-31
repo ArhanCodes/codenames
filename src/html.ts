@@ -349,7 +349,7 @@ export function getHTML(): string {
   <div class="container">
     <header>
       <h1>CODENAMES</h1>
-      <p class="subtitle" id="headerSub">Online multiplayer board game</p>
+      <p class="subtitle" id="headerSub">(for Self glazers)</p>
     </header>
 
     <!-- LANDING SCREEN -->
@@ -579,7 +579,7 @@ export function getHTML(): string {
       if (ops.length > 0) {
         slot.innerHTML = ops.map(o => o.name).join(', ');
       } else {
-        slot.innerHTML = 'Open &mdash; join to be first!';
+        slot.innerHTML = 'Open';
       }
       // Operative cards never get .taken class since multiple can join
     });
