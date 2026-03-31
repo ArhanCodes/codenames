@@ -402,12 +402,12 @@ export function getHTML(): string {
           <div class="role-card red-op" data-role="red-operative" onclick="selectRole(this)">
             <div class="role-emoji">🔍</div>
             <div class="role-name">Red Operative</div>
-            <div class="role-player-list" id="slot-red-operative">Open — join to be first!</div>
+            <div class="role-player-list" id="slot-red-operative">Open</div>
           </div>
           <div class="role-card blue-op" data-role="blue-operative" onclick="selectRole(this)">
             <div class="role-emoji">🔍</div>
             <div class="role-name">Blue Operative</div>
-            <div class="role-player-list" id="slot-blue-operative">Open — join to be first!</div>
+            <div class="role-player-list" id="slot-blue-operative">Open</div>
           </div>
         </div>
 
