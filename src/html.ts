@@ -153,8 +153,9 @@ export function getHTML(): string {
     cursor: pointer; transition: all 0.2s; text-align: center;
   }
   .role-card:hover { border-color: var(--text-muted); }
-  .role-card.taken { pointer-events: none; }
+  .role-card.taken { pointer-events: none; opacity: 0.85; }
   .role-card.taken .role-player { color: var(--text); font-weight: 700; }
+  .role-card.taken .role-player-list { color: var(--text); font-weight: 700; }
   .role-card.selected { transform: scale(1.03); }
   .role-card.red-spy { border-color: var(--red); }
   .role-card.red-spy.selected { background: rgba(220,38,38,0.15); box-shadow: 0 0 16px var(--red-glow); }
@@ -546,6 +547,7 @@ export function getHTML(): string {
   document.getElementById('nameInput').addEventListener('change', updateJoinBtn);
 
   function joinGame() {
+    if (playerId) return; // Already joined — prevent double-click
     if (!selectedRole || !roomCode) return;
     const name = document.getElementById('nameInput').value.trim();
     if (!name) { showToast('Enter your name'); return; }
@@ -586,7 +588,9 @@ export function getHTML(): string {
         slot.style.fontWeight = '700';
         slot.style.color = 'var(--text)';
         card.classList.add('taken');
-        if (role === selectedRole && p.id !== playerId) {
+        // If someone else took this spymaster role, deselect it
+        const myName = document.getElementById('nameInput').value.trim();
+        if (role === selectedRole && p.name !== myName) {
           card.classList.remove('selected');
           selectedRole = null;
         }
@@ -597,14 +601,16 @@ export function getHTML(): string {
         card.classList.remove('taken');
       }
     });
-    // Operatives: multiple allowed
+    // Operatives: multiple allowed (never mark as taken since anyone can join)
     ['red-operative','blue-operative'].forEach(role => {
       const slot = document.getElementById('slot-' + role);
       const ops = players.filter(pl => pl.role === role);
       if (ops.length > 0) {
         slot.innerHTML = ops.map(o => '<strong>' + o.name + '</strong>').join(', ');
+        slot.style.color = 'var(--text)';
       } else {
         slot.innerHTML = 'Open';
+        slot.style.color = '';
       }
     });
 

@@ -149,9 +149,27 @@ function filterStateForPlayer(game: GameState, playerId: string | null): object 
   // Which card did this player vote for?
   const myVote = playerId && game.currentVotes[playerId] !== undefined ? game.currentVotes[playerId] : null;
 
+  // Strip player IDs from non-self players so they can't be spoofed
+  const safePlayers = game.players.map(p => ({
+    name: p.name,
+    role: p.role,
+    ...(p.id === playerId ? { id: p.id } : {}),
+  }));
+
   return {
-    ...game,
+    id: game.id,
+    roomCode: game.roomCode,
     cards,
+    currentTeam: game.currentTeam,
+    phase: game.phase,
+    redScore: game.redScore,
+    blueScore: game.blueScore,
+    winner: game.winner,
+    gameOver: game.gameOver,
+    gameOverReason: game.gameOverReason,
+    players: safePlayers,
+    currentClue: game.currentClue,
+    clueHistory: game.clueHistory,
     currentVotes: voteSummary,
     _isSpymaster: isSpymaster,
     _playerId: playerId,
@@ -211,6 +229,24 @@ export default {
       if (!data) return jsonResponse({ error: 'Game not found' }, 404);
 
       const game: GameState = JSON.parse(data);
+      const trimmedName = body.name.trim() || 'Anonymous';
+
+      // Check if this player already exists (same name)
+      const existingPlayer = game.players.find(p => p.name === trimmedName);
+      if (existingPlayer) {
+        // Same name, same role — just return existing session (idempotent rejoin)
+        if (existingPlayer.role === body.role) {
+          await env.CODENAMES.put(game.roomCode, JSON.stringify(game), { expirationTtl: 86400 });
+          return jsonResponse({ playerId: existingPlayer.id, game: filterStateForPlayer(game, existingPlayer.id) });
+        }
+        // Same name, different role — remove old entry so they can switch
+        // But first check if the new role (spymaster) is already taken by someone else
+        if ((body.role === 'red-spymaster' || body.role === 'blue-spymaster') &&
+            game.players.some(p => p.role === body.role && p.name !== trimmedName)) {
+          return jsonResponse({ error: 'That spymaster role is already taken' }, 400);
+        }
+        game.players = game.players.filter(p => p.name !== trimmedName);
+      }
 
       // Only one spymaster per team
       if ((body.role === 'red-spymaster' || body.role === 'blue-spymaster') &&
@@ -219,7 +255,7 @@ export default {
       }
 
       const playerId = generatePlayerId();
-      game.players.push({ id: playerId, name: body.name.trim() || 'Anonymous', role: body.role });
+      game.players.push({ id: playerId, name: trimmedName, role: body.role });
 
       await env.CODENAMES.put(game.roomCode, JSON.stringify(game), { expirationTtl: 86400 });
       return jsonResponse({ playerId, game: filterStateForPlayer(game, playerId) });
