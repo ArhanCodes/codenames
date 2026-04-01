@@ -478,6 +478,58 @@ export function getHTML(): string {
   let selectedRole = null;
   let pollInterval = null;
   let lastStateJSON = '';
+  let gameOverShown = false;
+
+  // Persist session in localStorage so refresh doesn't lose identity
+  function saveSession() {
+    if (roomCode && playerId) {
+      localStorage.setItem('cn_room', roomCode);
+      localStorage.setItem('cn_pid', playerId);
+      localStorage.setItem('cn_role', myRole || '');
+      localStorage.setItem('cn_team', myTeam || '');
+    }
+  }
+  function clearSession() {
+    localStorage.removeItem('cn_room');
+    localStorage.removeItem('cn_pid');
+    localStorage.removeItem('cn_role');
+    localStorage.removeItem('cn_team');
+  }
+  // Auto-rejoin on page load
+  (function restoreSession() {
+    const r = localStorage.getItem('cn_room');
+    const p = localStorage.getItem('cn_pid');
+    if (r && p) {
+      roomCode = r;
+      playerId = p;
+      myRole = localStorage.getItem('cn_role') || null;
+      myTeam = localStorage.getItem('cn_team') || null;
+      // Check if game still exists
+      fetch('/api/game/' + roomCode + '?playerId=' + playerId)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) { clearSession(); return; }
+          // Verify our player is still in the game
+          const me = (data.players || []).find(pl => pl.id === playerId);
+          if (!me) { clearSession(); return; }
+          myRole = data._playerRole;
+          myTeam = data._playerTeam;
+          if (data.phase === 'lobby') {
+            showScreen('screenLobby');
+            document.getElementById('lobbyRoomCode').textContent = roomCode;
+            updateLobbySlots(data.players || [], data._canStart);
+            document.getElementById('joinBtn').classList.add('btn-disabled');
+            document.getElementById('joinBtn').textContent = 'Joined ✓';
+            startLobbyPoll();
+          } else {
+            showScreen('screenGame');
+            renderGame(data);
+            startGamePoll();
+          }
+        })
+        .catch(() => clearSession());
+    }
+  })();
 
   function startGame() {
     if (!roomCode || !playerId) return;
@@ -491,8 +543,10 @@ export function getHTML(): string {
         if (data.error) { showToast(data.error); return; }
         myRole = data._playerRole;
         myTeam = data._playerTeam;
+        saveSession();
         showScreen('screenGame');
         stopPolling();
+        gameOverShown = false;
         renderGame(data);
         startGamePoll();
       })
@@ -546,11 +600,15 @@ export function getHTML(): string {
 
   document.getElementById('nameInput').addEventListener('change', updateJoinBtn);
 
+  let joinInProgress = false;
   function joinGame() {
-    if (playerId) return; // Already joined — prevent double-click
+    if (joinInProgress) return; // Prevent double-click
     if (!selectedRole || !roomCode) return;
     const name = document.getElementById('nameInput').value.trim();
-    if (!name) { showToast('Enter your name'); return; }
+    if (!name) { showToast('Pick your name'); return; }
+
+    joinInProgress = true;
+    document.getElementById('joinBtn').classList.add('btn-disabled');
 
     fetch('/api/join', {
       method: 'POST',
@@ -559,13 +617,14 @@ export function getHTML(): string {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.error) { showToast(data.error); return; }
+        joinInProgress = false;
+        if (data.error) { showToast(data.error); document.getElementById('joinBtn').classList.remove('btn-disabled'); return; }
         playerId = data.playerId;
         myRole = data.game._playerRole;
         myTeam = data.game._playerTeam;
+        saveSession();
         if (data.game.phase === 'lobby') {
           updateLobbySlots(data.game.players, data.game._canStart);
-          document.getElementById('joinBtn').classList.add('btn-disabled');
           document.getElementById('joinBtn').textContent = 'Joined ✓';
         } else {
           showScreen('screenGame');
@@ -574,7 +633,7 @@ export function getHTML(): string {
           startGamePoll();
         }
       })
-      .catch(() => showToast('Failed to join'));
+      .catch(() => { joinInProgress = false; showToast('Failed to join'); document.getElementById('joinBtn').classList.remove('btn-disabled'); });
   }
 
   function updateLobbySlots(players, canStart) {
@@ -584,7 +643,7 @@ export function getHTML(): string {
       const card = document.querySelector('[data-role="' + role + '"]');
       const p = players.find(pl => pl.role === role);
       if (p) {
-        slot.textContent = p.name;
+        slot.textContent = p.name; // textContent is XSS-safe
         slot.style.fontWeight = '700';
         slot.style.color = 'var(--text)';
         card.classList.add('taken');
@@ -606,7 +665,7 @@ export function getHTML(): string {
       const slot = document.getElementById('slot-' + role);
       const ops = players.filter(pl => pl.role === role);
       if (ops.length > 0) {
-        slot.innerHTML = ops.map(o => '<strong>' + o.name + '</strong>').join(', ');
+        slot.innerHTML = ops.map(o => '<strong>' + (o.name || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>').join(', ');
         slot.style.color = 'var(--text)';
       } else {
         slot.innerHTML = 'Open';
@@ -776,15 +835,17 @@ export function getHTML(): string {
           '<div class="card-front' + spyClass + '">' + card.word + '</div>' +
           '<div class="card-back team-' + backTeam + '">' + (backTeam === 'assassin' ? '💀 ' + card.word : card.word) + '</div>' +
         '</div>';
-      el.onclick = () => guess(i);
+      if (!noClick) el.onclick = () => guess(i);
       grid.appendChild(el);
     });
 
     // Game over
-    if (state.gameOver && !document.getElementById('overlay').classList.contains('visible')) {
+    if (state.gameOver && !gameOverShown) {
+      gameOverShown = true;
       showGameOver(state);
     }
     if (!state.gameOver) {
+      gameOverShown = false;
       document.getElementById('overlay').classList.remove('visible');
     }
   }
@@ -852,6 +913,7 @@ export function getHTML(): string {
       .then(data => {
         if (data.error) { showToast(data.error); return; }
         lastStateJSON = '';
+        gameOverShown = false;
         renderGame(data);
         document.getElementById('overlay').classList.remove('visible');
         document.getElementById('confettiContainer').innerHTML = '';

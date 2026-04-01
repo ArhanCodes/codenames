@@ -302,11 +302,13 @@ export class GameRoom {
     const expectedRole = game.currentTeam === 'red' ? 'red-spymaster' : 'blue-spymaster';
     if (player.role !== expectedRole) return jsonResponse({ error: 'Not your turn to give a clue' }, 400);
 
+    const num = Math.max(0, Math.min(25, body.number));
     const clue: Clue = {
       word: body.word.trim().toUpperCase(),
-      number: Math.max(0, Math.min(25, body.number)),
+      number: num,
       team: game.currentTeam,
-      guessesLeft: body.number + 1,
+      // 0 = unlimited guesses (Codenames rules), otherwise number + 1 bonus guess
+      guessesLeft: num === 0 ? 99 : num + 1,
     };
 
     game.currentClue = clue;
