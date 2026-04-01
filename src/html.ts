@@ -153,7 +153,8 @@ export function getHTML(): string {
     cursor: pointer; transition: all 0.2s; text-align: center;
   }
   .role-card:hover { border-color: var(--text-muted); }
-  .role-card.taken { opacity: 0.35; pointer-events: none; }
+  .role-card.taken { pointer-events: none; }
+  .role-card.taken .role-player { color: var(--text); font-weight: 700; }
   .role-card.selected { transform: scale(1.03); }
   .role-card.red-spy { border-color: var(--red); }
   .role-card.red-spy.selected { background: rgba(220,38,38,0.15); box-shadow: 0 0 16px var(--red-glow); }
@@ -413,6 +414,7 @@ export function getHTML(): string {
         </div>
 
         <button class="btn btn-green btn-full btn-disabled" id="joinBtn" onclick="joinGame()">Join Game</button>
+        <button class="btn btn-blue btn-full" id="startBtn" onclick="startGame()" style="display:none;margin-top:10px">Start Game</button>
         <div class="lobby-status" id="lobbyStatus">Waiting for players...</div>
       </div>
     </div>
@@ -476,6 +478,26 @@ export function getHTML(): string {
   let pollInterval = null;
   let lastStateJSON = '';
 
+  function startGame() {
+    if (!roomCode || !playerId) return;
+    fetch('/api/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId: roomCode, playerId })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { showToast(data.error); return; }
+        myRole = data._playerRole;
+        myTeam = data._playerTeam;
+        showScreen('screenGame');
+        stopPolling();
+        renderGame(data);
+        startGamePoll();
+      })
+      .catch(() => showToast('Failed to start'));
+  }
+
   // ===== LANDING =====
   function createAndGoToLobby() {
     fetch('/api/create', { method: 'POST' })
@@ -498,7 +520,7 @@ export function getHTML(): string {
         roomCode = data.roomCode;
         showScreen('screenLobby');
         document.getElementById('lobbyRoomCode').textContent = roomCode;
-        updateLobbySlots(data.players || []);
+        updateLobbySlots(data.players || [], data._canStart);
         startLobbyPoll();
       })
       .catch(() => showToast('Game not found'));
@@ -540,8 +562,7 @@ export function getHTML(): string {
         myRole = data.game._playerRole;
         myTeam = data.game._playerTeam;
         if (data.game.phase === 'lobby') {
-          updateLobbySlots(data.game.players);
-          document.getElementById('lobbyStatus').textContent = 'Waiting for all 4 roles to be filled...';
+          updateLobbySlots(data.game.players, data.game._canStart);
           document.getElementById('joinBtn').classList.add('btn-disabled');
           document.getElementById('joinBtn').textContent = 'Joined ✓';
         } else {
@@ -554,7 +575,7 @@ export function getHTML(): string {
       .catch(() => showToast('Failed to join'));
   }
 
-  function updateLobbySlots(players) {
+  function updateLobbySlots(players, canStart) {
     // Spymasters: single slot
     ['red-spymaster','blue-spymaster'].forEach(role => {
       const slot = document.getElementById('slot-' + role);
@@ -562,6 +583,8 @@ export function getHTML(): string {
       const p = players.find(pl => pl.role === role);
       if (p) {
         slot.textContent = p.name;
+        slot.style.fontWeight = '700';
+        slot.style.color = 'var(--text)';
         card.classList.add('taken');
         if (role === selectedRole && p.id !== playerId) {
           card.classList.remove('selected');
@@ -569,6 +592,8 @@ export function getHTML(): string {
         }
       } else {
         slot.textContent = 'Open';
+        slot.style.fontWeight = '';
+        slot.style.color = '';
         card.classList.remove('taken');
       }
     });
@@ -577,12 +602,32 @@ export function getHTML(): string {
       const slot = document.getElementById('slot-' + role);
       const ops = players.filter(pl => pl.role === role);
       if (ops.length > 0) {
-        slot.innerHTML = ops.map(o => o.name).join(', ');
+        slot.innerHTML = ops.map(o => '<strong>' + o.name + '</strong>').join(', ');
       } else {
         slot.innerHTML = 'Open';
       }
-      // Operative cards never get .taken class since multiple can join
     });
+
+    // Start button
+    const startBtn = document.getElementById('startBtn');
+    if (canStart && playerId) {
+      startBtn.style.display = 'block';
+      document.getElementById('lobbyStatus').textContent = 'All roles filled — ready to start!';
+    } else {
+      startBtn.style.display = 'none';
+      const hasRedSpy = players.some(p => p.role === 'red-spymaster');
+      const hasBlueSpy = players.some(p => p.role === 'blue-spymaster');
+      const hasRedOp = players.some(p => p.role === 'red-operative');
+      const hasBlueOp = players.some(p => p.role === 'blue-operative');
+      const missing = [];
+      if (!hasRedSpy) missing.push('Red Spymaster');
+      if (!hasBlueSpy) missing.push('Blue Spymaster');
+      if (!hasRedOp) missing.push('Red Operative');
+      if (!hasBlueOp) missing.push('Blue Operative');
+      document.getElementById('lobbyStatus').textContent = missing.length > 0
+        ? 'Still need: ' + missing.join(', ')
+        : 'Waiting for players...';
+    }
   }
 
   function startLobbyPoll() {
@@ -593,7 +638,7 @@ export function getHTML(): string {
         .then(r => r.json())
         .then(data => {
           if (data.error) return;
-          updateLobbySlots(data.players || []);
+          updateLobbySlots(data.players || [], data._canStart);
           if (data.phase !== 'lobby' && playerId) {
             myRole = data._playerRole;
             myTeam = data._playerTeam;

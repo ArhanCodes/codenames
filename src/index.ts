@@ -160,6 +160,7 @@ function filterStateForPlayer(game: GameState, playerId: string | null): object 
     _myVote: myVote,
     _totalOperatives: totalOps,
     _votesIn: Object.keys(game.currentVotes).length,
+    _canStart: game.phase === 'lobby' && canStartGame(game.players),
   };
 }
 
@@ -220,13 +221,24 @@ export default {
       const playerId = generatePlayerId();
       game.players.push({ id: playerId, name: body.name.trim() || 'Anonymous', role: body.role });
 
-      // Auto-start when all 4 roles filled
-      if (game.phase === 'lobby' && canStartGame(game.players)) {
-        game.phase = 'clue';
-      }
-
       await env.CODENAMES.put(game.roomCode, JSON.stringify(game), { expirationTtl: 86400 });
       return jsonResponse({ playerId, game: filterStateForPlayer(game, playerId) });
+    }
+
+    // Start game (manual)
+    if (method === 'POST' && pathname === '/api/start') {
+      const body = await request.json() as { gameId: string; playerId: string };
+      const data = await env.CODENAMES.get(body.gameId.toUpperCase());
+      if (!data) return jsonResponse({ error: 'Game not found' }, 404);
+
+      const game: GameState = JSON.parse(data);
+      if (game.phase !== 'lobby') return jsonResponse({ error: 'Game already started' }, 400);
+      if (!canStartGame(game.players)) return jsonResponse({ error: 'Need at least 1 spymaster + 1 operative per team' }, 400);
+
+      game.phase = 'clue';
+
+      await env.CODENAMES.put(game.roomCode, JSON.stringify(game), { expirationTtl: 86400 });
+      return jsonResponse(filterStateForPlayer(game, body.playerId));
     }
 
     // Get game state (with player perspective)
