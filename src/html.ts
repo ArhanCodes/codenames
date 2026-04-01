@@ -268,10 +268,11 @@ export function getHTML(): string {
   .card-front, .card-back {
     position: absolute; inset: 0; backface-visibility: hidden;
     border-radius: 8px; display: flex; align-items: center;
-    justify-content: center; padding: 4px; font-weight: 700;
-    font-size: clamp(0.5rem, 1.4vw, 0.82rem); text-align: center;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    word-break: break-word; line-height: 1.2;
+    justify-content: center; padding: 3px; font-weight: 700;
+    font-size: clamp(0.55rem, 2.2vw, 0.82rem); text-align: center;
+    text-transform: uppercase; letter-spacing: 0.02em;
+    word-break: break-word; line-height: 1.15;
+    overflow: hidden;
   }
 
   .card-front {
@@ -286,7 +287,7 @@ export function getHTML(): string {
   .card-back {
     transform: rotateY(180deg); color: white;
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    font-size: clamp(0.45rem, 1.2vw, 0.75rem);
+    font-size: clamp(0.5rem, 2vw, 0.75rem);
   }
   .card-back.team-red { background: var(--red); }
   .card-back.team-blue { background: var(--blue); }
@@ -334,14 +335,41 @@ export function getHTML(): string {
   @keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
 
   @media (max-width: 768px) {
-    h1 { font-size: 1.6rem; }
+    h1 { font-size: 1.4rem; letter-spacing: 0.2em; }
+    .subtitle { font-size: 0.7rem; }
+    .container { padding: 8px; }
     .game-layout { flex-direction: column; align-items: center; }
     .game-layout .score-panel { display: none; }
     .mobile-scores { display: flex !important; }
-    .grid { gap: 5px; }
+    .grid { gap: 4px; }
+    .grid-container { max-width: 100%; width: 100%; }
+    .card { aspect-ratio: 1.4; }
+    .card-front, .card-back { border-radius: 5px; padding: 2px; font-size: clamp(0.5rem, 3.2vw, 0.8rem); letter-spacing: 0; }
+    .card-front { border-width: 1.5px; }
+    .card-back { font-size: clamp(0.45rem, 2.8vw, 0.7rem); }
     .room-code-big { font-size: 1.6rem; }
-    .overlay-content { margin: 20px; padding: 32px 24px; }
-    .role-grid { grid-template-columns: 1fr; }
+    .lobby-box { padding: 20px 16px; }
+    .landing-box { padding: 24px 16px; margin: 20px auto; }
+    .overlay-content { margin: 16px; padding: 28px 20px; }
+    .role-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .role-card { padding: 12px 8px; }
+    .role-card .role-emoji { font-size: 1.2rem; margin-bottom: 4px; }
+    .role-card .role-name { font-size: 0.7rem; }
+    .role-card .role-player, .role-card .role-player-list { font-size: 0.65rem; }
+    .my-role-banner { padding: 8px; font-size: 0.75rem; margin-bottom: 8px; }
+    .turn-indicator { font-size: 0.85rem; padding: 8px; margin-bottom: 8px; }
+    .clue-display { padding: 8px; margin-bottom: 8px; }
+    .clue-display .clue-word { font-size: 1.2rem; }
+    .clue-display .clue-number { font-size: 0.9rem; }
+    .clue-input-row { gap: 6px; margin-bottom: 8px; }
+    .clue-input-row input { padding: 8px 10px; font-size: 0.85rem; }
+    .clue-input-row .clue-word-input { width: 140px; }
+    .clue-input-row .clue-num-input { width: 55px; }
+    .vote-status { font-size: 0.7rem; padding: 6px 10px; margin-bottom: 6px; }
+    .vote-badge { font-size: 0.5rem; padding: 1px 3px; }
+    .vote-mine { font-size: 0.45rem; padding: 1px 3px; }
+    .btn { padding: 10px 18px; font-size: 0.8rem; }
+    .actions { margin-top: 10px; }
   }
 </style>
 </head>
@@ -460,7 +488,6 @@ export function getHTML(): string {
 
       <div class="actions" id="gameActions">
         <button class="btn btn-secondary" id="endTurnBtn" onclick="endTurn()" style="display:none">End Turn</button>
-        <button class="btn btn-red" onclick="newRound()">New Round</button>
       </div>
     </div>
   </div>
@@ -959,7 +986,6 @@ export function getHTML(): string {
     } else {
       html = '<h2>GAME OVER</h2><p>' + (state.gameOverReason || '') + '</p>';
     }
-    html += '<button class="btn btn-green" onclick="newRound()" style="margin-right:8px">New Round</button>';
     html += '<button class="btn btn-secondary" onclick="document.getElementById(\\'overlay\\').classList.remove(\\'visible\\')">Close</button>';
     content.innerHTML = html;
     overlay.classList.add('visible');
